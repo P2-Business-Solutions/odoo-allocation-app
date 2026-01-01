@@ -38,8 +38,13 @@ class ApparelAllocationRule(models.Model):
         copy=True,
     )
 
-    _sql_constraints = [
-        ("product_company_unique", "unique(product_template_id, company_id)", "Only one rule per product template and company is allowed."),
+    _constraints = [
+        models.Constraint(
+            _name="product_company_unique",
+            _type="unique",
+            _fields=["product_template_id", "company_id"],
+            _message="Only one rule per product template and company is allowed.",
+        ),
     ]
 
     @api.model
