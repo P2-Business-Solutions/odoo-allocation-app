@@ -21,5 +21,6 @@
         "views/apparel_allocation_rule_views.xml",
         "views/res_config_settings_views.xml",
     ],
-    "application": False,
+    "application": True,
+    "installable": True,
 }
