@@ -7,7 +7,7 @@ allocation rules that keep sale orders in a "Needs Allocation" state until size 
 Administrators can decide whether to evaluate variant-level quantities or only template totals for
 companies that do not use product variants.
 
-## Running in an Odoo sandbox (17-19)
+## Running in an Odoo sandbox (19)
 
 1. Add this repo to your Odoo server's addons path (copy or symlink the ``apparel_allocation``
    folder next to your other custom modules).
