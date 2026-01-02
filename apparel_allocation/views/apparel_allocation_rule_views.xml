@@ -16,28 +16,17 @@
                     </group>
                     <notebook>
                         <page string="Size Targets">
-                            <field
-                                name="line_ids"
-                                view_id="view_apparel_allocation_rule_line_tree"
-                                context="{'default_rule_id': active_id}"
-                                mode="tree"
-                            />
+                            <field name="line_ids" context="{'default_rule_id': active_id}">
+                                <tree editable="bottom" default_order="sequence">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="attribute_value_id"/>
+                                    <field name="min_qty"/>
+                                </tree>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
             </form>
-        </field>
-    </record>
-
-    <record id="view_apparel_allocation_rule_line_tree" model="ir.ui.view">
-        <field name="name">apparel.allocation.rule.line.tree</field>
-        <field name="model">apparel.allocation.rule.line</field>
-        <field name="arch" type="xml">
-            <tree editable="bottom" default_order="sequence">
-                <field name="sequence" widget="handle"/>
-                <field name="attribute_value_id"/>
-                <field name="min_qty"/>
-            </tree>
         </field>
     </record>
 
