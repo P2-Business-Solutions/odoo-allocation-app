@@ -6,8 +6,8 @@
     "description": """Provide configurable allocation rules to keep apparel orders from
     reaching the Ready state until useful size assortments are reserved. A
     company can opt into product variant-aware rules or template-only rules
-    depending on how sizes are modeled. Compatible with Odoo 17.0 through 19.0.""",
-    "version": "19.0.0.0.0",
+    depending on how sizes are modeled. Compatible with Odoo 19.0.""",
+    "version": "19.0.1.0.0",
     "author": "OpenAI Assistant",
     "license": "AGPL-3",
     "depends": [
