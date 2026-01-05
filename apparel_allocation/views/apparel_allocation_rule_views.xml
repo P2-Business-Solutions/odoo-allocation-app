@@ -65,6 +65,6 @@
         </field>
     </record>
 
-    <menuitem id="menu_apparel_allocation_root" name="Apparel Allocation" parent="sale.sale_menu" sequence="80"/>
+    <menuitem id="menu_apparel_allocation_root" name="Apparel Allocation" sequence="80"/>
     <menuitem id="menu_apparel_allocation_rules" name="Allocation Rules" parent="menu_apparel_allocation_root" sequence="10" action="action_apparel_allocation_rules"/>
 </odoo>
