@@ -18,7 +18,7 @@
                         <page string="Size Targets">
                             <field
                                 name="line_ids"
-                                context="{'default_rule_id': active_id}"
+                                context="{'default_rule_id': id}"
                                 views="[(ref('view_apparel_allocation_rule_line_tree'), 'tree')]"
                             />
                         </page>
