@@ -54,9 +54,6 @@
         </field>
     </record>
 
-    <menuitem id="menu_apparel_allocation_root" name="Apparel Allocation" parent="sale.sale_menu" sequence="80"/>
-    <menuitem id="menu_apparel_allocation_rules" name="Allocation Rules" parent="menu_apparel_allocation_root" sequence="10" action="action_apparel_allocation_rules"/>
-
     <record id="action_apparel_allocation_rules" model="ir.actions.act_window">
         <field name="name">Allocation Rules</field>
         <field name="res_model">apparel.allocation.rule</field>
@@ -67,4 +64,7 @@
             </p>
         </field>
     </record>
+
+    <menuitem id="menu_apparel_allocation_root" name="Apparel Allocation" parent="sale.sale_menu" sequence="80"/>
+    <menuitem id="menu_apparel_allocation_rules" name="Allocation Rules" parent="menu_apparel_allocation_root" sequence="10" action="action_apparel_allocation_rules"/>
 </odoo>
