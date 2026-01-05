@@ -19,7 +19,7 @@
                             <field
                                 name="line_ids"
                                 context="{'default_rule_id': id}"
-                                views="[(ref('view_apparel_allocation_rule_line_tree'), 'tree')]"
+                                views="[(ref('view_apparel_allocation_rule_line_tree'), 'list')]"
                             />
                         </page>
                     </notebook>
@@ -32,11 +32,11 @@
         <field name="name">apparel.allocation.rule.line.tree</field>
         <field name="model">apparel.allocation.rule.line</field>
         <field name="arch" type="xml">
-            <tree editable="bottom" default_order="sequence">
+            <list editable="bottom" default_order="sequence">
                 <field name="sequence" widget="handle"/>
                 <field name="attribute_value_id"/>
                 <field name="min_qty"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -44,20 +44,20 @@
         <field name="name">apparel.allocation.rule.tree</field>
         <field name="model">apparel.allocation.rule</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="company_id"/>
                 <field name="product_template_id"/>
                 <field name="use_variants"/>
                 <field name="allow_partial"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_apparel_allocation_rules" model="ir.actions.act_window">
         <field name="name">Allocation Rules</field>
         <field name="res_model">apparel.allocation.rule</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create apparel allocation rules to guarantee well-balanced size assortments.
