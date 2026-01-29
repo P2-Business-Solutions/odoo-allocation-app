@@ -1,14 +1,21 @@
 # Copyright 2024-
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl-3.0.en.html).
 {
-    "name": "Apparel Allocation Rules",
-    "summary": "Allocation controls for apparel orders before picking readiness.",
-    "description": """Provide configurable allocation rules to keep apparel orders from
-    reaching the Ready state until useful size assortments are reserved. A
-    company can opt into product variant-aware rules or template-only rules
-    depending on how sizes are modeled. Compatible with Odoo 19.0.""",
-    "version": "19.0.1.0.0",
-    "author": "OpenAI Assistant",
+    "name": "Apparel Allocation & Fulfillment",
+    "summary": "Size-run aware allocation, fill-rate rules, and fulfillment "
+               "controls for apparel orders.",
+    "description": """Apparel-specific allocation and fulfillment logic for Odoo.
+
+    Provides configurable allocation rules with:
+    - Customer eligibility filters (tags, customer types)
+    - Size-run completeness checks
+    - Fill-rate thresholds per style/color and per order
+    - Soft (ledger) and hard (stock reservation) allocation modes
+    - Warehouse-aware availability resolution
+    - Incoming-stock lookahead
+    """,
+    "version": "19.0.2.0.0",
+    "author": "P2 Business Solutions",
     "license": "AGPL-3",
     "depends": [
         "base",

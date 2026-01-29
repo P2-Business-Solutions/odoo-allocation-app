@@ -1,26 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- ============================================================ -->
+    <!-- Allocation Rule: Form View                                    -->
+    <!-- ============================================================ -->
     <record id="view_apparel_allocation_rule_form" model="ir.ui.view">
         <field name="name">apparel.allocation.rule.form</field>
         <field name="model">apparel.allocation.rule</field>
         <field name="arch" type="xml">
-            <form string="Apparel Allocation Rule">
+            <form string="Allocation Rule">
                 <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="e.g. Wholesale Size Run Rule"/>
+                        </h1>
+                    </div>
+
                     <group>
-                        <field name="name"/>
-                        <field name="company_id"/>
-                        <field name="product_template_id"/>
-                        <field name="attribute_id"/>
-                        <field name="use_variants"/>
-                        <field name="allow_partial"/>
+                        <group string="General">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="sequence"/>
+                            <field name="active" invisible="1"/>
+                            <field name="reservation_mode" widget="radio"/>
+                        </group>
+                        <group string="Product Scope">
+                            <field name="product_template_ids" widget="many2many_tags"/>
+                            <field name="attribute_id"/>
+                            <field name="use_variants"/>
+                        </group>
                     </group>
+
                     <notebook>
-                        <page string="Size Targets">
-                            <field
-                                name="line_ids"
-                                context="{'default_rule_id': id}"
-                                views="[(ref('view_apparel_allocation_rule_line_tree'), 'list')]"
-                            />
+                        <page string="Eligibility" name="eligibility">
+                            <group>
+                                <group>
+                                    <field name="partner_tag_ids" widget="many2many_tags"/>
+                                    <field name="partner_customer_type_ids" widget="many2many_tags"/>
+                                </group>
+                                <group>
+                                    <field name="warehouse_id"/>
+                                </group>
+                            </group>
+                            <separator string="Help"/>
+                            <div class="text-muted">
+                                <p>Leave eligibility filters empty to apply this rule to all matching orders.
+                                When filters are set, the rule only evaluates orders whose customer
+                                matches at least one of the specified tags or customer types.</p>
+                            </div>
+                        </page>
+
+                        <page string="Criteria" name="criteria">
+                            <group>
+                                <group string="Size Run">
+                                    <field name="require_complete_size_run"/>
+                                    <field name="allow_partial"/>
+                                </group>
+                                <group string="Fill Rates">
+                                    <field name="min_fill_rate_style"/>
+                                    <field name="min_fill_rate_order"/>
+                                </group>
+                            </group>
+                            <group>
+                                <group string="Stock Lookahead">
+                                    <field name="include_incoming_days"/>
+                                </group>
+                            </group>
+                        </page>
+
+                        <page string="Size Targets" name="size_targets">
+                            <field name="line_ids"
+                                   context="{'default_rule_id': id}">
+                                <list editable="bottom" default_order="sequence">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="attribute_value_id"/>
+                                    <field name="min_qty"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Notes" name="notes">
+                            <field name="notes" placeholder="Internal notes about this rule..."/>
                         </page>
                     </notebook>
                 </sheet>
@@ -28,43 +86,158 @@
         </field>
     </record>
 
-    <record id="view_apparel_allocation_rule_line_tree" model="ir.ui.view">
-        <field name="name">apparel.allocation.rule.line.tree</field>
-        <field name="model">apparel.allocation.rule.line</field>
-        <field name="arch" type="xml">
-            <list editable="bottom" default_order="sequence">
-                <field name="sequence" widget="handle"/>
-                <field name="attribute_value_id"/>
-                <field name="min_qty"/>
-            </list>
-        </field>
-    </record>
-
+    <!-- ============================================================ -->
+    <!-- Allocation Rule: List View                                    -->
+    <!-- ============================================================ -->
     <record id="view_apparel_allocation_rule_tree" model="ir.ui.view">
         <field name="name">apparel.allocation.rule.tree</field>
         <field name="model">apparel.allocation.rule</field>
         <field name="arch" type="xml">
             <list>
+                <field name="sequence" widget="handle"/>
                 <field name="name"/>
-                <field name="company_id"/>
-                <field name="product_template_id"/>
-                <field name="use_variants"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="product_template_ids" widget="many2many_tags" optional="show"/>
+                <field name="partner_tag_ids" widget="many2many_tags" optional="hide"/>
+                <field name="partner_customer_type_ids" widget="many2many_tags" optional="hide"/>
+                <field name="reservation_mode"/>
+                <field name="require_complete_size_run"/>
+                <field name="min_fill_rate_style" optional="hide"/>
+                <field name="min_fill_rate_order" optional="hide"/>
                 <field name="allow_partial"/>
             </list>
         </field>
     </record>
 
+    <!-- ============================================================ -->
+    <!-- Allocation Rule: Search View                                  -->
+    <!-- ============================================================ -->
+    <record id="view_apparel_allocation_rule_search" model="ir.ui.view">
+        <field name="name">apparel.allocation.rule.search</field>
+        <field name="model">apparel.allocation.rule</field>
+        <field name="arch" type="xml">
+            <search string="Allocation Rules">
+                <field name="name"/>
+                <field name="product_template_ids"/>
+                <field name="partner_tag_ids"/>
+                <field name="partner_customer_type_ids"/>
+                <separator/>
+                <filter string="Soft Reservation" name="filter_soft"
+                        domain="[('reservation_mode', '=', 'soft')]"/>
+                <filter string="Hard Reservation" name="filter_hard"
+                        domain="[('reservation_mode', '=', 'hard')]"/>
+                <separator/>
+                <filter string="Complete Size Run" name="filter_size_run"
+                        domain="[('require_complete_size_run', '=', True)]"/>
+                <separator/>
+                <filter string="Archived" name="filter_inactive"
+                        domain="[('active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Company" name="group_company"
+                            context="{'group_by': 'company_id'}"/>
+                    <filter string="Reservation Mode" name="group_mode"
+                            context="{'group_by': 'reservation_mode'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Allocation Rule: Action                                       -->
+    <!-- ============================================================ -->
     <record id="action_apparel_allocation_rules" model="ir.actions.act_window">
         <field name="name">Allocation Rules</field>
         <field name="res_model">apparel.allocation.rule</field>
         <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_apparel_allocation_rule_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Create apparel allocation rules to guarantee well-balanced size assortments.
+                Create allocation rules to control when apparel orders are shippable.
+            </p>
+            <p>
+                Rules define eligibility (which customers), criteria (size runs, fill rates),
+                and reservation mode (soft ledger or hard stock reservation).
             </p>
         </field>
     </record>
 
-    <menuitem id="menu_apparel_allocation_root" name="Apparel Allocation" sequence="80"/>
-    <menuitem id="menu_apparel_allocation_rules" name="Allocation Rules" parent="menu_apparel_allocation_root" sequence="10" action="action_apparel_allocation_rules"/>
+    <!-- ============================================================ -->
+    <!-- Customer Type: Views & Action                                 -->
+    <!-- ============================================================ -->
+    <record id="view_apparel_customer_type_form" model="ir.ui.view">
+        <field name="name">apparel.customer.type.form</field>
+        <field name="model">apparel.customer.type</field>
+        <field name="arch" type="xml">
+            <form string="Customer Type">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="sequence"/>
+                        <field name="active" invisible="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_apparel_customer_type_tree" model="ir.ui.view">
+        <field name="name">apparel.customer.type.tree</field>
+        <field name="model">apparel.customer.type</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_apparel_customer_types" model="ir.actions.act_window">
+        <field name="name">Customer Types</field>
+        <field name="res_model">apparel.customer.type</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Define customer types used by allocation rule eligibility filters.
+            </p>
+            <p>Examples: Wholesale, Distributor, Retail, Key Account</p>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Partner: Add Customer Type field                               -->
+    <!-- ============================================================ -->
+    <record id="view_partner_form_inherit_customer_type" model="ir.ui.view">
+        <field name="name">res.partner.form.inherit.apparel.customer.type</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='category_id']" position="after">
+                <field name="customer_type_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Menus                                                         -->
+    <!-- ============================================================ -->
+    <menuitem id="menu_apparel_allocation_root"
+              name="Apparel Allocation"
+              sequence="80"/>
+
+    <menuitem id="menu_apparel_allocation_rules"
+              name="Allocation Rules"
+              parent="menu_apparel_allocation_root"
+              sequence="10"
+              action="action_apparel_allocation_rules"/>
+
+    <menuitem id="menu_apparel_allocation_config"
+              name="Configuration"
+              parent="menu_apparel_allocation_root"
+              sequence="90"/>
+
+    <menuitem id="menu_apparel_customer_types"
+              name="Customer Types"
+              parent="menu_apparel_allocation_config"
+              sequence="10"
+              action="action_apparel_customer_types"/>
 </odoo>

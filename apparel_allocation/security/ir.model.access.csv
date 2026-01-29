@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_apparel_allocation_rule,access.apparel.allocation.rule,model_apparel_allocation_rule,base.group_user,1,1,1,1
 access_apparel_allocation_rule_line,access.apparel.allocation.rule.line,model_apparel_allocation_rule_line,base.group_user,1,1,1,1
+access_apparel_customer_type,access.apparel.customer.type,model_apparel_customer_type,base.group_user,1,1,1,1
