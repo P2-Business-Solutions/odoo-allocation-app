@@ -22,11 +22,19 @@ class SaleOrder(models.Model):
         readonly=True,
     )
 
-    def _get_allocation_rules_by_template(self):
-        rules = self.env["apparel.allocation.rule"].sudo().search(
-            ["|", ("company_id", "=", False), ("company_id", "=", self.env.company.id)]
+    def _get_applicable_allocation_rules(self):
+        """Return allocation rules applicable to this order's company."""
+        return (
+            self.env["apparel.allocation.rule"]
+            .sudo()
+            .search(
+                [
+                    "|",
+                    ("company_id", "=", False),
+                    ("company_id", "=", self.env.company.id),
+                ]
+            )
         )
-        return {rule.product_template_id.id: rule for rule in rules}
 
     @api.depends(
         "order_line",
@@ -37,12 +45,8 @@ class SaleOrder(models.Model):
         for order in self:
             messages = []
             blocking = False
-            rules_by_template = order._get_allocation_rules_by_template()
-            templates = order.order_line.product_id.product_tmpl_id
-            for template in templates:
-                rule = rules_by_template.get(template.id)
-                if not rule:
-                    continue
+            rules = order._get_applicable_allocation_rules()
+            for rule in rules:
                 try:
                     missing = rule.check_allocation(order)
                     if missing:
@@ -50,6 +54,7 @@ class SaleOrder(models.Model):
                 except UserError as exc:
                     messages.append(str(exc.name or exc))
                     blocking = True
+
             order.allocation_state = "ready" if not messages else "pending"
             order.allocation_message = "\n".join(messages)
             if blocking and order.state not in ("draft", "sent"):
@@ -58,7 +63,9 @@ class SaleOrder(models.Model):
     def _check_allocation_ready(self):
         for order in self:
             if order.allocation_state != "ready":
-                msg = order.allocation_message or _("Allocation rules are not satisfied for this order.")
+                msg = order.allocation_message or _(
+                    "Allocation rules are not satisfied for this order."
+                )
                 raise UserError(msg)
 
     def action_confirm(self):

@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <xpath expr="//form" position="inside">
                 <app settings="True" string="Apparel Allocation" name="apparel_allocation">
-                    <h2>Apparel Allocation</h2>
+                    <h2>Allocation Defaults</h2>
                     <div class="row mt16 o_settings_container">
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_left_pane">
@@ -16,7 +16,23 @@
                             <div class="o_setting_right_pane">
                                 <label for="use_apparel_product_variants"/>
                                 <div class="text-muted">
-                                    When enabled, allocation rules evaluate individual product variants (e.g., sizes)
+                                    When enabled, allocation rules evaluate individual
+                                    product variants (e.g., sizes) by default. Individual
+                                    rules can override this setting.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="apparel_default_incoming_days"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="apparel_default_incoming_days"/>
+                                <div class="text-muted">
+                                    Default number of days to look ahead for incoming
+                                    stock when computing availability. Individual rules
+                                    can override this value. Set to 0 to consider
+                                    on-hand stock only.
                                 </div>
                             </div>
                         </div>
