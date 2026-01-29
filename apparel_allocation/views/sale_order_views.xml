@@ -6,12 +6,12 @@
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='note']" position="before">
-                <group string="Allocation" attrs="{'invisible': [('allocation_state', '=', False)]}">
+                <group string="Allocation" invisible="not allocation_state">
                     <field name="allocation_state" widget="badge"
                            decoration-success="allocation_state == 'ready'"
                            decoration-warning="allocation_state == 'pending'"/>
                     <field name="allocation_message"
-                           attrs="{'invisible': [('allocation_state', '!=', 'pending')]}"/>
+                           invisible="allocation_state != 'pending'"/>
                 </group>
             </xpath>
         </field>
