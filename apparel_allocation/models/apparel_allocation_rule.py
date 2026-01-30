@@ -47,7 +47,6 @@ class ApparelAllocationRule(models.Model):
     product_template_ids = fields.Many2many(
         "product.template",
         string="Product Templates",
-        domain=[("is_storable", "=", True)],
         help="Product templates this rule applies to. Leave empty to apply "
              "to all storable / consumable products on matching orders.",
     )
