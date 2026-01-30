@@ -118,9 +118,7 @@
         <field name="arch" type="xml">
             <search string="Allocation Rules">
                 <field name="name"/>
-                <field name="product_template_ids"/>
-                <field name="partner_tag_ids"/>
-                <field name="partner_customer_type_ids"/>
+                <field name="company_id"/>
                 <separator/>
                 <filter string="Soft Reservation" name="filter_soft"
                         domain="[('reservation_mode', '=', 'soft')]"/>
@@ -132,7 +130,7 @@
                 <separator/>
                 <filter string="Archived" name="filter_inactive"
                         domain="[('active', '=', False)]"/>
-                <group expand="0" string="Group By">
+                <group string="Group By">
                     <filter string="Company" name="group_company"
                             context="{'group_by': 'company_id'}"/>
                     <filter string="Reservation Mode" name="group_mode"
