@@ -7,7 +7,7 @@
         <field name="name">apparel.allocation.rule.form</field>
         <field name="model">apparel.allocation.rule</field>
         <field name="arch" type="xml">
-            <form string="Allocation Rule">
+            <form>
                 <sheet>
                     <div class="oe_title">
                         <h1>
@@ -67,9 +67,8 @@
                         </page>
 
                         <page string="Size Targets" name="size_targets">
-                            <field name="line_ids"
-                                   context="{'default_rule_id': id}">
-                                <list editable="bottom" default_order="sequence">
+                            <field name="line_ids">
+                                <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
                                     <field name="attribute_value_id"/>
                                     <field name="min_qty"/>
@@ -116,7 +115,7 @@
         <field name="name">apparel.allocation.rule.search</field>
         <field name="model">apparel.allocation.rule</field>
         <field name="arch" type="xml">
-            <search string="Allocation Rules">
+            <search>
                 <field name="name"/>
                 <field name="company_id"/>
                 <separator/>
@@ -130,7 +129,7 @@
                 <separator/>
                 <filter string="Archived" name="filter_inactive"
                         domain="[('active', '=', False)]"/>
-                <group string="Group By">
+                <group>
                     <filter string="Company" name="group_company"
                             context="{'group_by': 'company_id'}"/>
                     <filter string="Reservation Mode" name="group_mode"
@@ -166,7 +165,7 @@
         <field name="name">apparel.customer.type.form</field>
         <field name="model">apparel.customer.type</field>
         <field name="arch" type="xml">
-            <form string="Customer Type">
+            <form>
                 <sheet>
                     <group>
                         <field name="name"/>
