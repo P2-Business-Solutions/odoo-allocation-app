@@ -1,4 +1,13 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_apparel_allocation_rule,access.apparel.allocation.rule,model_apparel_allocation_rule,base.group_user,1,1,1,1
-access_apparel_allocation_rule_line,access.apparel.allocation.rule.line,model_apparel_allocation_rule_line,base.group_user,1,1,1,1
-access_apparel_customer_type,access.apparel.customer.type,model_apparel_customer_type,base.group_user,1,1,1,1
+access_apparel_allocation_rule_user,apparel.allocation.rule user,model_apparel_allocation_rule,base.group_user,1,0,0,0
+access_apparel_allocation_rule_manager,apparel.allocation.rule manager,model_apparel_allocation_rule,apparel_allocation.group_allocation_manager,1,1,1,1
+access_apparel_allocation_rule_line_user,apparel.allocation.rule.line user,model_apparel_allocation_rule_line,base.group_user,1,0,0,0
+access_apparel_allocation_rule_line_manager,apparel.allocation.rule.line manager,model_apparel_allocation_rule_line,apparel_allocation.group_allocation_manager,1,1,1,1
+access_apparel_customer_type_user,apparel.customer.type user,model_apparel_customer_type,base.group_user,1,0,0,0
+access_apparel_customer_type_manager,apparel.customer.type manager,model_apparel_customer_type,apparel_allocation.group_allocation_manager,1,1,1,1
+access_apparel_allocation_read,apparel.allocation read,model_apparel_allocation,base.group_user,1,0,0,0
+access_apparel_allocation_user,apparel.allocation user,model_apparel_allocation,apparel_allocation.group_allocation_user,1,1,1,0
+access_apparel_allocation_manager,apparel.allocation manager,model_apparel_allocation,apparel_allocation.group_allocation_manager,1,1,1,1
+access_apparel_allocation_report_user,apparel.allocation.report user,model_apparel_allocation_report,apparel_allocation.group_allocation_user,1,0,0,0
+access_apparel_allocation_run_user,apparel.allocation.run user,model_apparel_allocation_run,apparel_allocation.group_allocation_user,1,1,1,1
+access_apparel_allocation_reallocate_user,apparel.allocation.reallocate user,model_apparel_allocation_reallocate,apparel_allocation.group_allocation_user,1,1,1,1

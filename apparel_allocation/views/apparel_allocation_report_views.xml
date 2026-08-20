@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_apparel_allocation_report_pivot" model="ir.ui.view">
+        <field name="name">apparel.allocation.report.pivot</field>
+        <field name="model">apparel.allocation.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Allocation Analysis" sample="1">
+                <field name="product_tmpl_id" type="row"/>
+                <field name="source_type" type="col"/>
+                <field name="qty" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_apparel_allocation_report_graph" model="ir.ui.view">
+        <field name="name">apparel.allocation.report.graph</field>
+        <field name="model">apparel.allocation.report</field>
+        <field name="arch" type="xml">
+            <graph string="Allocation Analysis" type="bar" stacked="1" sample="1">
+                <field name="date_needed" interval="month"/>
+                <field name="source_type"/>
+                <field name="qty" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_apparel_allocation_report_list" model="ir.ui.view">
+        <field name="name">apparel.allocation.report.list</field>
+        <field name="model">apparel.allocation.report</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="is_late"
+                  decoration-warning="source_type == 'unallocated'">
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="customer_type_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="source_type" widget="badge"
+                       decoration-danger="source_type == 'unallocated'"
+                       decoration-info="source_type == 'stock'"
+                       decoration-warning="source_type == 'purchase'"
+                       decoration-primary="source_type == 'manufacture'"/>
+                <field name="qty" sum="Total"/>
+                <field name="date_expected" optional="show"/>
+                <field name="date_needed" optional="show"/>
+                <field name="is_late" optional="show"/>
+                <field name="warehouse_id" optional="hide"/>
+                <field name="order_state" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_apparel_allocation_report_search" model="ir.ui.view">
+        <field name="name">apparel.allocation.report.search</field>
+        <field name="model">apparel.allocation.report</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="product_tmpl_id"/>
+                <separator/>
+                <filter string="Unallocated Demand" name="filter_unallocated"
+                        domain="[('source_type', '=', 'unallocated')]"/>
+                <filter string="Allocated" name="filter_allocated_sources"
+                        domain="[('source_type', '!=', 'unallocated')]"/>
+                <filter string="Late Supply" name="filter_late"
+                        domain="[('is_late', '=', True)]"/>
+                <separator/>
+                <filter string="Confirmed Orders" name="filter_confirmed"
+                        domain="[('order_state', '=', 'sale')]"/>
+                <filter string="Quotations" name="filter_quotations"
+                        domain="[('order_state', 'in', ('draft', 'sent'))]"/>
+                <group>
+                    <filter string="Product" name="group_product"
+                            context="{'group_by': 'product_tmpl_id'}"/>
+                    <filter string="Variant" name="group_variant"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Customer" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Customer Type" name="group_customer_type"
+                            context="{'group_by': 'customer_type_id'}"/>
+                    <filter string="Source" name="group_source"
+                            context="{'group_by': 'source_type'}"/>
+                    <filter string="Warehouse" name="group_warehouse"
+                            context="{'group_by': 'warehouse_id'}"/>
+                    <filter string="Needed Month" name="group_needed"
+                            context="{'group_by': 'date_needed:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_apparel_allocation_report" model="ir.actions.act_window">
+        <field name="name">Allocation Analysis</field>
+        <field name="res_model">apparel.allocation.report</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="search_view_id" ref="view_apparel_allocation_report_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No allocation data yet.
+            </p>
+            <p>
+                This report combines every allocation (by source: stock,
+                purchase orders, manufacturing orders) with the remaining
+                unallocated demand of open sale orders, so you can measure
+                coverage, fill rates and late supply at a glance.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_apparel_allocation_reporting"
+              name="Reporting"
+              parent="menu_apparel_allocation_root"
+              sequence="50"/>
+
+    <menuitem id="menu_apparel_allocation_report"
+              name="Allocation Analysis"
+              parent="menu_apparel_allocation_reporting"
+              sequence="10"
+              action="action_apparel_allocation_report"/>
+</odoo>

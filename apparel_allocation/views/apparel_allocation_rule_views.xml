@@ -219,18 +219,21 @@
     <!-- ============================================================ -->
     <menuitem id="menu_apparel_allocation_root"
               name="Apparel Allocation"
-              sequence="80"/>
+              sequence="80"
+              groups="apparel_allocation.group_allocation_user"/>
 
     <menuitem id="menu_apparel_allocation_rules"
               name="Allocation Rules"
               parent="menu_apparel_allocation_root"
               sequence="10"
-              action="action_apparel_allocation_rules"/>
+              action="action_apparel_allocation_rules"
+              groups="apparel_allocation.group_allocation_manager"/>
 
     <menuitem id="menu_apparel_allocation_config"
               name="Configuration"
               parent="menu_apparel_allocation_root"
-              sequence="90"/>
+              sequence="90"
+              groups="apparel_allocation.group_allocation_manager"/>
 
     <menuitem id="menu_apparel_customer_types"
               name="Customer Types"

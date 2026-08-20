@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mrp_production_form_inherit_apparel_allocation" model="ir.ui.view">
+        <field name="name">mrp.production.form.inherit.apparel.allocation</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_allocations" type="object"
+                        class="oe_stat_button" icon="fa-cubes"
+                        invisible="allocation_count == 0">
+                    <field name="allocation_count" widget="statinfo"
+                           string="Allocations"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

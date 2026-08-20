@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="module_category_apparel_allocation" model="ir.module.category">
+        <field name="name">Apparel Allocation</field>
+        <field name="description">Access rights for the apparel allocation app.</field>
+        <field name="sequence">57</field>
+    </record>
+
+    <record id="privilege_apparel_allocation" model="res.groups.privilege">
+        <field name="name">Apparel Allocation</field>
+        <field name="sequence">57</field>
+        <field name="category_id" ref="module_category_apparel_allocation"/>
+    </record>
+
+    <record id="group_allocation_user" model="res.groups">
+        <field name="name">User</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="privilege_apparel_allocation"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Can view and run allocations, release and reallocate them.</field>
+    </record>
+
+    <record id="group_allocation_manager" model="res.groups">
+        <field name="name">Manager</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="privilege_apparel_allocation"/>
+        <field name="implied_ids" eval="[(4, ref('group_allocation_user'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        <field name="comment">Can additionally configure allocation rules and customer types.</field>
+    </record>
+
+    <!-- Multi-company record rules -->
+    <record id="rule_apparel_allocation_company" model="ir.rule">
+        <field name="name">Apparel Allocation: multi-company</field>
+        <field name="model_id" ref="model_apparel_allocation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_apparel_allocation_rule_company" model="ir.rule">
+        <field name="name">Apparel Allocation Rule: multi-company</field>
+        <field name="model_id" ref="model_apparel_allocation_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
