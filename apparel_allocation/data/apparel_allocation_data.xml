@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="seq_apparel_allocation" model="ir.sequence">
+        <field name="name">Apparel Allocation</field>
+        <field name="code">apparel.allocation</field>
+        <field name="prefix">ALLOC/%(range_year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- Enable PO/MO allocation by default so the settings page reflects
+         the engine's out-of-the-box behavior. -->
+    <record id="param_allocate_from_po" model="ir.config_parameter">
+        <field name="key">apparel_allocation.allocate_from_po</field>
+        <field name="value">True</field>
+    </record>
+    <record id="param_allocate_from_mo" model="ir.config_parameter">
+        <field name="key">apparel_allocation.allocate_from_mo</field>
+        <field name="value">True</field>
+    </record>
+
+    <record id="cron_apparel_allocation_mark_done" model="ir.cron">
+        <field name="name">Apparel Allocation: close fulfilled allocations</field>
+        <field name="model_id" ref="model_apparel_allocation"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_mark_done()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

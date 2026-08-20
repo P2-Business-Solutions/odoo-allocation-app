@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- Run Allocation Wizard                                         -->
+    <!-- ============================================================ -->
+    <record id="view_apparel_allocation_run_form" model="ir.ui.view">
+        <field name="name">apparel.allocation.run.form</field>
+        <field name="model">apparel.allocation.run</field>
+        <field name="arch" type="xml">
+            <form string="Run Allocation">
+                <group>
+                    <field name="order_ids" widget="many2many_tags"
+                           options="{'no_create': True}"/>
+                </group>
+                <group>
+                    <group string="Supply Sources">
+                        <field name="source_stock"/>
+                        <field name="source_purchase"/>
+                        <field name="source_manufacture"/>
+                        <field name="horizon_days"/>
+                    </group>
+                    <group string="Date Matching">
+                        <field name="enforce_date_match"/>
+                        <field name="tolerance_days"
+                               invisible="not enforce_date_match"/>
+                    </group>
+                </group>
+                <group>
+                    <group string="Strategy">
+                        <field name="sort_by"/>
+                        <field name="release_existing"/>
+                    </group>
+                    <group string="Reservation">
+                        <field name="hard_reserve"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_run" type="object" string="Allocate"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_apparel_allocation_run" model="ir.actions.act_window">
+        <field name="name">Allocate Orders</field>
+        <field name="res_model">apparel.allocation.run</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Reallocate Wizard                                             -->
+    <!-- ============================================================ -->
+    <record id="view_apparel_allocation_reallocate_form" model="ir.ui.view">
+        <field name="name">apparel.allocation.reallocate.form</field>
+        <field name="model">apparel.allocation.reallocate</field>
+        <field name="arch" type="xml">
+            <form string="Reallocate">
+                <group>
+                    <field name="allocation_ids" widget="many2many_tags"
+                           options="{'no_create': True}"/>
+                    <field name="mode" widget="radio"/>
+                    <field name="product_id" readonly="1"
+                           invisible="mode != 'change_source'"/>
+                </group>
+                <group invisible="mode != 'change_source'">
+                    <field name="new_source_type" widget="radio"/>
+                    <field name="new_purchase_line_id"
+                           invisible="new_source_type != 'purchase'"
+                           required="mode == 'change_source' and new_source_type == 'purchase'"/>
+                    <field name="new_production_id"
+                           invisible="new_source_type != 'manufacture'"
+                           required="mode == 'change_source' and new_source_type == 'manufacture'"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Apply"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_apparel_allocation_reallocate" model="ir.actions.act_window">
+        <field name="name">Reallocate</field>
+        <field name="res_model">apparel.allocation.reallocate</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="apparel_allocation.model_apparel_allocation"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Menu                                                          -->
+    <!-- ============================================================ -->
+    <menuitem id="menu_apparel_allocation_run"
+              name="Run Allocation"
+              parent="menu_apparel_allocation_root"
+              sequence="20"
+              action="action_apparel_allocation_run"/>
+</odoo>

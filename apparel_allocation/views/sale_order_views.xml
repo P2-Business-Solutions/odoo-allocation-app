@@ -5,14 +5,82 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="allocation_count" invisible="1"/>
+                <button name="action_run_allocation" type="object"
+                        string="Allocate"
+                        invisible="state == 'cancel'"
+                        groups="apparel_allocation.group_allocation_user"/>
+                <button name="action_release_allocations" type="object"
+                        string="Release Allocations"
+                        invisible="allocation_count == 0"
+                        confirm="Release all active allocations of this order and free their supply?"
+                        groups="apparel_allocation.group_allocation_user"/>
+                <button name="action_recheck_allocation" type="object"
+                        string="Recheck Rules"
+                        invisible="allocation_state != 'pending'"
+                        groups="apparel_allocation.group_allocation_user"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_allocations" type="object"
+                        class="oe_stat_button" icon="fa-cubes"
+                        invisible="allocation_count == 0">
+                    <field name="allocation_count" widget="statinfo"
+                           string="Allocations"/>
+                </button>
+            </xpath>
             <xpath expr="//field[@name='note']" position="before">
-                <group string="Allocation" invisible="not allocation_state">
+                <group string="Allocation"
+                       invisible="not allocation_state and not allocation_coverage">
+                    <field name="allocation_priority" widget="badge"
+                           decoration-warning="allocation_priority == '1'"
+                           decoration-danger="allocation_priority == '2'"/>
                     <field name="allocation_state" widget="badge"
                            decoration-success="allocation_state == 'ready'"
                            decoration-warning="allocation_state == 'pending'"/>
+                    <field name="allocation_coverage" widget="badge"
+                           decoration-danger="allocation_coverage == 'none'"
+                           decoration-warning="allocation_coverage == 'partial'"
+                           decoration-success="allocation_coverage == 'full'"/>
+                    <field name="allocation_pct" widget="progressbar"/>
                     <field name="allocation_message"
                            invisible="allocation_state != 'pending'"/>
                 </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_order_tree_inherit_apparel_allocation" model="ir.ui.view">
+        <field name="name">sale.order.list.inherit.apparel.allocation</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='amount_total']" position="after">
+                <field name="allocation_coverage" widget="badge" optional="show"
+                       decoration-danger="allocation_coverage == 'none'"
+                       decoration-warning="allocation_coverage == 'partial'"
+                       decoration-success="allocation_coverage == 'full'"/>
+                <field name="allocation_pct" optional="hide"/>
+                <field name="allocation_priority" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sales_order_filter_inherit_apparel_allocation" model="ir.ui.view">
+        <field name="name">sale.order.search.inherit.apparel.allocation</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <separator/>
+                <filter string="Not Allocated" name="filter_coverage_none"
+                        domain="[('allocation_coverage', '=', 'none')]"/>
+                <filter string="Partially Allocated" name="filter_coverage_partial"
+                        domain="[('allocation_coverage', '=', 'partial')]"/>
+                <filter string="Fully Allocated" name="filter_coverage_full"
+                        domain="[('allocation_coverage', '=', 'full')]"/>
+                <filter string="High Allocation Priority" name="filter_high_priority"
+                        domain="[('allocation_priority', 'in', ('1', '2'))]"/>
             </xpath>
         </field>
     </record>

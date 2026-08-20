@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- Allocation: List View                                         -->
+    <!-- ============================================================ -->
+    <record id="view_apparel_allocation_list" model="ir.ui.view">
+        <field name="name">apparel.allocation.list</field>
+        <field name="model">apparel.allocation</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="is_late" decoration-muted="state == 'cancelled'"
+                  decoration-success="state == 'done'">
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="customer_type_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="qty" sum="Total"/>
+                <field name="source_type" widget="badge"
+                       decoration-info="source_type == 'stock'"
+                       decoration-warning="source_type == 'purchase'"
+                       decoration-primary="source_type == 'manufacture'"/>
+                <field name="purchase_order_id" optional="show"/>
+                <field name="production_id" optional="show"/>
+                <field name="warehouse_id" optional="hide"/>
+                <field name="date_expected" optional="show"/>
+                <field name="date_needed" optional="show"/>
+                <field name="is_late" optional="hide"/>
+                <field name="days_late" optional="hide"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'done'"
+                       decoration-info="state == 'allocated'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <button name="action_release" type="object" string="Release"
+                        icon="fa-times-circle" invisible="state != 'allocated'"
+                        groups="apparel_allocation.group_allocation_user"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Allocation: Form View                                         -->
+    <!-- ============================================================ -->
+    <record id="view_apparel_allocation_form" model="ir.ui.view">
+        <field name="name">apparel.allocation.form</field>
+        <field name="model">apparel.allocation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_release" type="object" string="Release"
+                            class="btn-warning" invisible="state != 'allocated'"
+                            confirm="Release this allocation and free its supply?"
+                            groups="apparel_allocation.group_allocation_user"/>
+                    <button name="action_mark_done" type="object" string="Mark Fulfilled"
+                            invisible="state != 'allocated'"
+                            groups="apparel_allocation.group_allocation_user"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="allocated,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Demand">
+                            <field name="sale_line_id" invisible="1"/>
+                            <field name="sale_order_id"/>
+                            <field name="partner_id"/>
+                            <field name="customer_type_id"/>
+                            <field name="product_id"/>
+                            <field name="qty"/>
+                            <field name="date_needed"/>
+                        </group>
+                        <group string="Supply">
+                            <field name="source_type"/>
+                            <field name="purchase_line_id"
+                                   invisible="source_type != 'purchase'"
+                                   required="source_type == 'purchase'"
+                                   domain="[('product_id', '=', product_id), ('order_id.state', 'in', ('purchase', 'done'))]"/>
+                            <field name="purchase_order_id"
+                                   invisible="source_type != 'purchase'"/>
+                            <field name="production_id"
+                                   invisible="source_type != 'manufacture'"
+                                   required="source_type == 'manufacture'"
+                                   domain="[('product_id', '=', product_id), ('state', 'in', ('confirmed', 'progress', 'to_close'))]"/>
+                            <field name="warehouse_id"/>
+                            <field name="date_expected"/>
+                            <field name="is_late" invisible="not is_late"/>
+                            <field name="days_late" invisible="not is_late"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="note"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Allocation: Search View                                       -->
+    <!-- ============================================================ -->
+    <record id="view_apparel_allocation_search" model="ir.ui.view">
+        <field name="name">apparel.allocation.search</field>
+        <field name="model">apparel.allocation</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="purchase_order_id"/>
+                <field name="production_id"/>
+                <separator/>
+                <filter string="Allocated" name="filter_allocated"
+                        domain="[('state', '=', 'allocated')]"/>
+                <filter string="Fulfilled" name="filter_done"
+                        domain="[('state', '=', 'done')]"/>
+                <filter string="Released" name="filter_cancelled"
+                        domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="From Stock" name="filter_stock"
+                        domain="[('source_type', '=', 'stock')]"/>
+                <filter string="From Purchase Orders" name="filter_purchase"
+                        domain="[('source_type', '=', 'purchase')]"/>
+                <filter string="From Manufacturing Orders" name="filter_manufacture"
+                        domain="[('source_type', '=', 'manufacture')]"/>
+                <separator/>
+                <filter string="Late Supply" name="filter_late"
+                        domain="[('is_late', '=', True)]"/>
+                <group>
+                    <filter string="Sale Order" name="group_order"
+                            context="{'group_by': 'sale_order_id'}"/>
+                    <filter string="Customer" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Customer Type" name="group_customer_type"
+                            context="{'group_by': 'customer_type_id'}"/>
+                    <filter string="Product" name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Source" name="group_source"
+                            context="{'group_by': 'source_type'}"/>
+                    <filter string="Warehouse" name="group_warehouse"
+                            context="{'group_by': 'warehouse_id'}"/>
+                    <filter string="Expected Month" name="group_expected"
+                            context="{'group_by': 'date_expected:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Allocation: Action + Menu                                     -->
+    <!-- ============================================================ -->
+    <record id="action_apparel_allocations" model="ir.actions.act_window">
+        <field name="name">Allocations</field>
+        <field name="res_model">apparel.allocation</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_apparel_allocation_search"/>
+        <field name="context">{'search_default_filter_allocated': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No allocations yet.
+            </p>
+            <p>
+                Allocations link sale order demand to supply: on-hand stock,
+                confirmed purchase orders, or manufacturing orders. Use the
+                <i>Run Allocation</i> menu or the <i>Allocate</i> button on
+                sale orders to create them.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_apparel_allocations"
+              name="Allocations"
+              parent="menu_apparel_allocation_root"
+              sequence="5"
+              action="action_apparel_allocations"/>
+</odoo>

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
@@ -165,8 +167,50 @@ class ApparelAllocationRule(models.Model):
         return order_templates
 
     # ------------------------------------------------------------------
-    # Allocation check (Phase 1 — still uses ordered qty logic,
-    # availability-based checks will be added in Phase 3)
+    # Availability
+    # ------------------------------------------------------------------
+    def _get_incoming_horizon(self):
+        """Days of incoming-stock lookahead for this rule."""
+        self.ensure_one()
+        if self.include_incoming_days:
+            return self.include_incoming_days
+        param = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("apparel_allocation.default_incoming_days", "0")
+        )
+        try:
+            return int(param or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    def _get_availability(self, products, warehouse, company):
+        """Allocatable quantity for *products*: net free stock plus incoming
+        supply (POs/MOs) within the rule's lookahead horizon."""
+        self.ensure_one()
+        Allocation = self.env["apparel.allocation"]
+        horizon = self._get_incoming_horizon()
+        limit = (
+            fields.Datetime.now() + timedelta(days=horizon) if horizon > 0 else False
+        )
+        total = 0.0
+        for product in products:
+            if not product.is_storable:
+                continue
+            total += max(Allocation._get_free_stock_qty(product, warehouse), 0.0)
+            if limit:
+                supply = Allocation._get_purchase_supply(
+                    product, warehouse, company
+                ) + Allocation._get_manufacture_supply(product, warehouse, company)
+                total += sum(
+                    src["qty"]
+                    for src in supply
+                    if not src["date"] or src["date"] <= limit
+                )
+        return total
+
+    # ------------------------------------------------------------------
+    # Allocation check
     # ------------------------------------------------------------------
     def check_allocation(self, order):
         """Validate *order* against this rule.
@@ -195,9 +239,32 @@ class ApparelAllocationRule(models.Model):
                 continue
 
             missing = self._check_template_allocation(
-                template, template_lines, variant_mode
+                order, template, template_lines, variant_mode
             )
             all_missing.extend(missing)
+
+        # --- Min fill rate per order ---------------------------------
+        if self.min_fill_rate_order:
+            storable_lines = order.order_line.filtered(
+                lambda sol: not sol.display_type
+                and sol.product_id
+                and sol.product_id.is_storable
+            )
+            ordered_total = sum(storable_lines.mapped("product_uom_qty"))
+            if ordered_total:
+                warehouse = order.warehouse_id or self.warehouse_id
+                available = self._get_availability(
+                    storable_lines.mapped("product_id"),
+                    warehouse,
+                    order.company_id,
+                )
+                fill = min(available / ordered_total * 100.0, 100.0)
+                if fill < self.min_fill_rate_order:
+                    all_missing.append(
+                        _("Order fill rate %(fill).1f%% is below the required "
+                          "%(min).1f%%")
+                        % {"fill": fill, "min": self.min_fill_rate_order}
+                    )
 
         if all_missing and not self.allow_partial:
             raise UserError(
@@ -206,7 +273,8 @@ class ApparelAllocationRule(models.Model):
             )
         return all_missing
 
-    def _check_template_allocation(self, template, order_lines, variant_mode):
+    def _check_template_allocation(self, order, template, order_lines,
+                                   variant_mode):
         """Check a single template against size-target lines and criteria.
 
         Returns list of missing-target messages.
@@ -268,10 +336,32 @@ class ApparelAllocationRule(models.Model):
                         % {"tmpl": template.display_name, "size": size_name}
                     )
 
-        # --- Min fill rate per style/color (Phase 1 placeholder) ---------
-        # Full availability-based fill rate will be computed in Phase 3
-        # when the allocation engine has warehouse resolution. For now we
-        # record the threshold so it is stored on the rule and ready to use.
+        # --- Min fill rate per style/color -------------------------------
+        if self.min_fill_rate_style:
+            storable_lines = order_lines.filtered(
+                lambda sol: not sol.display_type
+                and sol.product_id
+                and sol.product_id.is_storable
+            )
+            ordered_qty = sum(storable_lines.mapped("product_uom_qty"))
+            if ordered_qty:
+                warehouse = order.warehouse_id or self.warehouse_id
+                available = self._get_availability(
+                    storable_lines.mapped("product_id"),
+                    warehouse,
+                    order.company_id,
+                )
+                fill = min(available / ordered_qty * 100.0, 100.0)
+                if fill < self.min_fill_rate_style:
+                    missing.append(
+                        _("%(tmpl)s — fill rate %(fill).1f%% is below the "
+                          "required %(min).1f%%")
+                        % {
+                            "tmpl": template.display_name,
+                            "fill": fill,
+                            "min": self.min_fill_rate_style,
+                        }
+                    )
 
         return missing
 
