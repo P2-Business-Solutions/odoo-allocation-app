@@ -124,7 +124,9 @@ class ApparelAllocationRule(models.Model):
         digits=(5, 2),
         default=100.0,
         help="Minimum achievable fill percentage required before anything is "
-             "allocated to the group. 100 = only allocate complete groups.",
+             "allocated to the group. 100 = only allocate complete groups.\n"
+             "0 = no minimum ('fill available'): ship whatever is achievable "
+             "— still evenly across sizes when Balanced Size Runs is on.",
     )
     engine_size_run_aware = fields.Boolean(
         string="Balanced Size Runs",
@@ -144,10 +146,10 @@ class ApparelAllocationRule(models.Model):
     @api.constrains("engine_enabled", "engine_fill_target")
     def _check_engine_fill_target(self):
         for rule in self:
-            if rule.engine_enabled and not (0.0 < rule.engine_fill_target <= 100.0):
+            if rule.engine_enabled and not (0.0 <= rule.engine_fill_target <= 100.0):
                 raise ValidationError(
-                    _("The target fill rate must be greater than 0 and at "
-                      "most 100%.")
+                    _("The target fill rate must be between 0 (fill "
+                      "available, no minimum) and 100%.")
                 )
 
     def _group_lines_for_engine(self, lines):

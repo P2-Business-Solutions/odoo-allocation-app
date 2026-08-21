@@ -38,6 +38,8 @@ of future supply, bulk allocation / re-allocation tools, and dedicated reporting
 - **Balanced Size Runs** (default): every size is allocated at the same rate, so
   a partial fill keeps a complete, proportional run — 80% means 80% of every
   size, with whole-unit rounding that never drops small sizes to zero.
+- A target of **0** means *fill available*: ship whatever is achievable with no
+  minimum — still evenly across sizes when Balanced Size Runs is on.
 - A **Color Attribute** on the rule splits templates into style/color groups;
   the first matching engine rule (by sequence, honoring customer eligibility
   and template scope) governs each order. Orders with no engine rule are

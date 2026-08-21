@@ -628,11 +628,19 @@ class ApparelAllocation(models.Model):
                 )
                 achievable_pct = achievable / total_demand * 100.0
 
-            if float_compare(achievable_pct, target, precision_digits=2) < 0:
+            # target 0 = "fill available": no minimum gate.
+            if target and float_compare(achievable_pct, target, precision_digits=2) < 0:
                 skips.append(
                     _("%(group)s: achievable fill %(pct).1f%% is below the "
                       "%(target).1f%% target — nothing allocated.")
                     % {"group": label, "pct": achievable_pct, "target": target}
+                )
+                continue
+            if rate is not None and float_compare(rate, 0.0, precision_digits=4) <= 0:
+                skips.append(
+                    _("%(group)s: no balanced size run possible — at least "
+                      "one size has no available supply.")
+                    % {"group": label}
                 )
                 continue
 
