@@ -58,6 +58,10 @@
                                 complete. Sizes are read from the product variants automatically.
                                 Groups left below target are logged on the order so you can see
                                 exactly why.</p>
+                                <p>Set the target to <b>0</b> for a "fill available" rule: ship
+                                whatever is achievable with no minimum — still evenly across
+                                sizes when Balanced Size Runs is on. Orders matching no rule at
+                                all are always filled greedily.</p>
                             </div>
                         </page>
                         <page string="Eligibility" name="eligibility">

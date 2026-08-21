@@ -442,6 +442,35 @@ class TestSizeRunAllocation(common.TransactionCase):
         self.assertEqual(by_product.get(self.variants[0]), 8.0)
         self.assertEqual(by_product.get(self.variants[1]), 3.0)
 
+    def test_fill_available_no_minimum(self):
+        self._set_stock([5, 8, 8])
+        self._create_rule(engine_fill_target=0.0, engine_size_run_aware=False)
+        so = self._create_order([10, 10, 10])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # No minimum: ship everything achievable (5 + 8 + 8).
+        self.assertEqual(sum(created.mapped("qty")), 21.0)
+
+    def test_fill_available_balanced(self):
+        self._set_stock([5, 8, 8])
+        self._create_rule(engine_fill_target=0.0)
+        so = self._create_order([10, 10, 10])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # No minimum, but balanced: rate = min(0.5, 0.8, 0.8) = 0.5,
+        # so every size ships at 50% and the run stays proportional.
+        self.assertEqual(created.mapped("qty"), [5.0, 5.0, 5.0])
+
+    def test_fill_available_balanced_dead_size_logs(self):
+        self._set_stock([0, 8, 8])
+        self._create_rule(engine_fill_target=0.0)
+        so = self._create_order([10, 10, 10])
+        messages_before = len(so.message_ids)
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # One size has no supply at all: no balanced run is possible, and
+        # the reason is logged instead of failing silently.
+        self.assertFalse(created)
+        self.assertGreater(len(so.message_ids), messages_before)
+        self.assertIn("no balanced size run possible", so.message_ids[0].body)
+
     def test_wizard_can_ignore_rule_targets(self):
         self._set_stock([5, 8, 8])
         self._create_rule()
