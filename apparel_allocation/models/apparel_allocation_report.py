@@ -63,7 +63,7 @@ class ApparelAllocationReport(models.Model):
                     pp.product_tmpl_id AS product_tmpl_id,
                     aa.sale_order_id AS sale_order_id,
                     so.partner_id AS partner_id,
-                    rp.customer_type_id AS customer_type_id,
+                    aa.customer_type_id AS customer_type_id,
                     aa.warehouse_id AS warehouse_id,
                     aa.company_id AS company_id,
                     aa.source_type AS source_type,
@@ -80,7 +80,6 @@ class ApparelAllocationReport(models.Model):
                     ) AS is_late
                 FROM apparel_allocation aa
                 JOIN sale_order so ON so.id = aa.sale_order_id
-                JOIN res_partner rp ON rp.id = so.partner_id
                 JOIN product_product pp ON pp.id = aa.product_id
                 WHERE aa.state != 'cancelled'
 
