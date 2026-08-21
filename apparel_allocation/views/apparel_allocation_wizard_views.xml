@@ -28,6 +28,7 @@
                 <group>
                     <group string="Strategy">
                         <field name="sort_by"/>
+                        <field name="respect_rule_targets"/>
                         <field name="release_existing"/>
                     </group>
                     <group string="Reservation">

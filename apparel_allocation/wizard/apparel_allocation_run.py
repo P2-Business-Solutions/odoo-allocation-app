@@ -32,6 +32,15 @@ class ApparelAllocationRun(models.TransientModel):
         help="Accept future supply expected up to this many days after the "
              "commitment date.",
     )
+    respect_rule_targets = fields.Boolean(
+        string="Follow Rule Fill Targets",
+        default=True,
+        help="Orders matching an allocation rule with 'Drive Allocation "
+             "Runs' enabled are filled to that rule's target percentage "
+             "(all-or-nothing per order or style/color group, with balanced "
+             "size runs when configured). Untick to allocate greedily and "
+             "ignore fill targets for this run.",
+    )
     release_existing = fields.Boolean(
         string="Re-Allocate (Release Existing First)",
         help="Release the selected orders' current allocations before "
@@ -115,6 +124,7 @@ class ApparelAllocationRun(models.TransientModel):
                 horizon_days=self.horizon_days,
                 enforce_date_match=self.enforce_date_match,
                 tolerance_days=self.tolerance_days,
+                use_rule_targets=self.respect_rule_targets,
             )
         if self.hard_reserve:
             created._action_reserve_stock()
@@ -127,8 +137,9 @@ class ApparelAllocationRun(models.TransientModel):
                     "title": _("Allocation"),
                     "message": _(
                         "No new allocations were created. Demand may already "
-                        "be covered, or no matching supply was found within "
-                        "the date constraints."
+                        "be covered, no matching supply was found within the "
+                        "date constraints, or every group stayed below its "
+                        "rule's fill target (check the orders' log notes)."
                     ),
                     "type": "warning",
                     "sticky": False,

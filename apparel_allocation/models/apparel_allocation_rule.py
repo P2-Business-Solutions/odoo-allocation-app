@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 class ApparelAllocationRule(models.Model):
@@ -94,6 +94,97 @@ class ApparelAllocationRule(models.Model):
         help="When enabled, the order can proceed even when some allocation "
              "targets are not fully met. Unmet targets are logged as warnings.",
     )
+
+    # ------------------------------------------------------------------
+    # Engine targets — how should allocation runs fill eligible orders?
+    # ------------------------------------------------------------------
+    engine_enabled = fields.Boolean(
+        string="Drive Allocation Runs",
+        help="When enabled, allocation runs apply this rule's fill target to "
+             "eligible orders: each order (or each style/color group) is "
+             "either filled to at least the target percentage or left "
+             "untouched, so supply is never dribbled away on orders that "
+             "cannot ship.",
+    )
+    engine_fill_level = fields.Selection(
+        [
+            ("line", "Each Style / Color"),
+            ("order", "Entire Order"),
+        ],
+        string="Fill Target Applies To",
+        default="line",
+        required=True,
+        help="Each Style / Color: the target is checked per product "
+             "template + color combination (a size run).\n"
+             "Entire Order: the target is checked once across all of the "
+             "order's products.",
+    )
+    engine_fill_target = fields.Float(
+        string="Target Fill Rate (%)",
+        digits=(5, 2),
+        default=100.0,
+        help="Minimum achievable fill percentage required before anything is "
+             "allocated to the group. 100 = only allocate complete groups.",
+    )
+    engine_size_run_aware = fields.Boolean(
+        string="Balanced Size Runs",
+        default=True,
+        help="Allocate every size at the same rate, so partially filled "
+             "groups keep a complete, proportional size run instead of some "
+             "sizes being filled 100% while others get nothing.",
+    )
+    color_attribute_id = fields.Many2one(
+        "product.attribute",
+        string="Color Attribute",
+        help="Attribute that represents color (e.g. 'Color'). Used to split "
+             "order lines into style/color groups. Leave empty to group by "
+             "product template only.",
+    )
+
+    @api.constrains("engine_enabled", "engine_fill_target")
+    def _check_engine_fill_target(self):
+        for rule in self:
+            if rule.engine_enabled and not (0.0 < rule.engine_fill_target <= 100.0):
+                raise ValidationError(
+                    _("The target fill rate must be greater than 0 and at "
+                      "most 100%.")
+                )
+
+    def _group_lines_for_engine(self, lines):
+        """Split *lines* into engine allocation groups.
+
+        Returns a list of ``(label, lines)`` tuples: one group for the whole
+        order when the fill level is 'order', otherwise one group per product
+        template + color value (each group representing one size run — the
+        sizes are simply the product variants inside the group, so no size
+        enumeration is needed).
+        """
+        self.ensure_one()
+        storable = lines.filtered(
+            lambda sol: not sol.display_type
+            and sol.product_id
+            and sol.product_id.is_storable
+        )
+        if not storable:
+            return []
+        if self.engine_fill_level == "order":
+            return [(_("Entire order"), storable)]
+        groups = {}
+        for sol in storable:
+            color = self.env["product.template.attribute.value"]
+            if self.color_attribute_id:
+                color = sol.product_id.product_template_attribute_value_ids.filtered(
+                    lambda ptav: ptav.attribute_id == self.color_attribute_id
+                )[:1]
+            key = (sol.product_id.product_tmpl_id.id, color.id)
+            if key not in groups:
+                label = sol.product_id.product_tmpl_id.display_name
+                if color:
+                    label = "%s (%s)" % (label, color.name)
+                groups[key] = (label, self.env["sale.order.line"])
+            label, group = groups[key]
+            groups[key] = (label, group | sol)
+        return list(groups.values())
 
     # ------------------------------------------------------------------
     # Reservation mode

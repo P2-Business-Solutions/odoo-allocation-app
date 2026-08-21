@@ -1,8 +1,10 @@
 from datetime import timedelta
 
+from markupsafe import Markup
+
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
-from odoo.tools import float_compare
+from odoo.tools import float_compare, float_is_zero, float_round
 
 
 class ApparelAllocation(models.Model):
@@ -422,12 +424,20 @@ class ApparelAllocation(models.Model):
     def allocate_sale_lines(self, lines, source_stock=True, source_purchase=True,
                             source_manufacture=True, horizon_days=0,
                             enforce_date_match=False, tolerance_days=0,
-                            hard_reserve=False):
+                            hard_reserve=False, use_rule_targets=True):
         """Allocate open demand on *lines* against available supply.
 
         Supply is consumed in date order: on-hand stock first, then future
         sources (purchase order lines and manufacturing orders) sorted by
         expected availability date.
+
+        When ``use_rule_targets`` is True (default) and an order matches an
+        allocation rule with *Drive Allocation Runs* enabled, that rule's
+        fill target governs the run: each group (order, or style/color size
+        run) is either fillable to at least the target percentage — and then
+        allocated, evenly across sizes when *Balanced Size Runs* is on — or
+        left untouched, with the reason logged on the order. Orders without
+        such a rule are allocated greedily line by line.
 
         :param horizon_days: only consider future supply expected within
             this many days (0 = no limit).
@@ -438,73 +448,234 @@ class ApparelAllocation(models.Model):
             related delivery pickings for stock-sourced allocations.
         :return: recordset of created allocations.
         """
+        opts = {
+            "source_stock": source_stock,
+            "source_purchase": source_purchase,
+            "source_manufacture": source_manufacture,
+            "horizon_days": horizon_days,
+            "enforce_date_match": enforce_date_match,
+            "tolerance_days": tolerance_days,
+        }
         created = self.browse()
-        now = fields.Datetime.now()
-        horizon_limit = (
-            now + timedelta(days=horizon_days) if horizon_days else False
-        )
-        for sol in lines:
-            if sol.display_type or not sol.product_id or not sol.product_id.is_storable:
+        for order in lines.mapped("order_id"):
+            if order.state == "cancel":
                 continue
-            if sol.order_id.state == "cancel":
-                continue
-            product = sol.product_id
-            rounding = product.uom_id.rounding or 0.001
-            demand = sol.product_uom_qty - sol.qty_delivered - sol.qty_allocated
-            if float_compare(demand, 0.0, precision_rounding=rounding) <= 0:
-                continue
-
-            order = sol.order_id
-            warehouse = order.warehouse_id
-            need_limit = False
-            if enforce_date_match and order.commitment_date:
-                need_limit = order.commitment_date + timedelta(days=tolerance_days)
-
-            sources = []
-            if source_stock:
-                free = self._get_free_stock_qty(product, warehouse)
-                if float_compare(free, 0.0, precision_rounding=rounding) > 0:
-                    sources.append(
-                        {"type": "stock", "record": None, "qty": free, "date": False}
+            order_lines = lines.filtered(lambda sol: sol.order_id == order)
+            rule = order._get_engine_rule() if use_rule_targets else None
+            if rule:
+                covered = order_lines
+                if rule.product_template_ids:
+                    covered = order_lines.filtered(
+                        lambda sol: sol.product_id.product_tmpl_id
+                        in rule.product_template_ids
                     )
-            if source_purchase:
-                sources.extend(
-                    self._get_purchase_supply(product, warehouse, order.company_id)
-                )
-            if source_manufacture:
-                sources.extend(
-                    self._get_manufacture_supply(product, warehouse, order.company_id)
-                )
-
-            # On-hand first, then earliest future supply.
-            sources.sort(key=lambda s: (bool(s["date"]), s["date"] or now))
-
-            for src in sources:
-                if float_compare(demand, 0.0, precision_rounding=rounding) <= 0:
-                    break
-                if src["date"]:
-                    if horizon_limit and src["date"] > horizon_limit:
-                        continue
-                    if need_limit and src["date"] > need_limit:
-                        continue
-                take = min(demand, src["qty"])
-                vals = {
-                    "sale_line_id": sol.id,
-                    "product_id": product.id,
-                    "qty": take,
-                    "warehouse_id": warehouse.id if warehouse else False,
-                    "source_type": src["type"],
-                    "company_id": order.company_id.id,
-                }
-                if src["type"] == "purchase":
-                    vals["purchase_line_id"] = src["record"].id
-                elif src["type"] == "manufacture":
-                    vals["production_id"] = src["record"].id
-                created |= self.create(vals)
-                demand -= take
-
+                created |= self._allocate_with_rule(order, covered, rule, opts)
+                created |= self._allocate_greedy(order_lines - covered, opts)
+            else:
+                created |= self._allocate_greedy(order_lines, opts)
         if hard_reserve:
             created._action_reserve_stock()
+        return created
+
+    @api.model
+    def _line_open_demand(self, sol):
+        """Unallocated, undelivered demand of a sale line (0.0 if none)."""
+        if sol.display_type or not sol.product_id or not sol.product_id.is_storable:
+            return 0.0
+        rounding = sol.product_id.uom_id.rounding or 0.001
+        demand = sol.product_uom_qty - sol.qty_delivered - sol.qty_allocated
+        if float_compare(demand, 0.0, precision_rounding=rounding) <= 0:
+            return 0.0
+        return demand
+
+    @api.model
+    def _gather_sources(self, sol, opts):
+        """Date-filtered, date-sorted supply sources for *sol*'s product.
+
+        On-hand stock first, then future supply by expected date, with the
+        horizon and commitment-date filters from *opts* already applied.
+        """
+        order = sol.order_id
+        product = sol.product_id
+        warehouse = order.warehouse_id
+        now = fields.Datetime.now()
+        rounding = product.uom_id.rounding or 0.001
+        horizon_limit = (
+            now + timedelta(days=opts["horizon_days"])
+            if opts["horizon_days"] else False
+        )
+        need_limit = False
+        if opts["enforce_date_match"] and order.commitment_date:
+            need_limit = order.commitment_date + timedelta(
+                days=opts["tolerance_days"]
+            )
+
+        sources = []
+        if opts["source_stock"]:
+            free = self._get_free_stock_qty(product, warehouse)
+            if float_compare(free, 0.0, precision_rounding=rounding) > 0:
+                sources.append(
+                    {"type": "stock", "record": None, "qty": free, "date": False}
+                )
+        if opts["source_purchase"]:
+            sources.extend(
+                self._get_purchase_supply(product, warehouse, order.company_id)
+            )
+        if opts["source_manufacture"]:
+            sources.extend(
+                self._get_manufacture_supply(product, warehouse, order.company_id)
+            )
+
+        result = []
+        for src in sorted(sources, key=lambda s: (bool(s["date"]), s["date"] or now)):
+            if src["date"]:
+                if horizon_limit and src["date"] > horizon_limit:
+                    continue
+                if need_limit and src["date"] > need_limit:
+                    continue
+            result.append(src)
+        return result
+
+    @api.model
+    def _available_qty_for_line(self, sol, opts):
+        return sum(src["qty"] for src in self._gather_sources(sol, opts))
+
+    @api.model
+    def _consume_sources(self, sol, qty, opts):
+        """Create allocations for *sol* totalling at most *qty*."""
+        created = self.browse()
+        order = sol.order_id
+        product = sol.product_id
+        warehouse = order.warehouse_id
+        rounding = product.uom_id.rounding or 0.001
+        remaining = qty
+        for src in self._gather_sources(sol, opts):
+            if float_compare(remaining, 0.0, precision_rounding=rounding) <= 0:
+                break
+            take = min(remaining, src["qty"])
+            vals = {
+                "sale_line_id": sol.id,
+                "product_id": product.id,
+                "qty": take,
+                "warehouse_id": warehouse.id if warehouse else False,
+                "source_type": src["type"],
+                "company_id": order.company_id.id,
+            }
+            if src["type"] == "purchase":
+                vals["purchase_line_id"] = src["record"].id
+            elif src["type"] == "manufacture":
+                vals["production_id"] = src["record"].id
+            created |= self.create(vals)
+            remaining -= take
+        return created
+
+    @api.model
+    def _allocate_greedy(self, lines, opts):
+        """Line-by-line allocation of all open demand (no fill targets)."""
+        created = self.browse()
+        for sol in lines:
+            demand = self._line_open_demand(sol)
+            if demand:
+                created |= self._consume_sources(sol, demand, opts)
+        return created
+
+    @api.model
+    def _allocate_with_rule(self, order, lines, rule, opts):
+        """Fill-target allocation: each group is filled to at least the
+        rule's target percentage or left untouched.
+
+        With *Balanced Size Runs*, every size (product variant) in the group
+        is allocated at the same rate, so partial fills keep a complete,
+        proportional run. Skipped groups are logged on the order's chatter.
+        """
+        created = self.browse()
+        skips = []
+        target = rule.engine_fill_target
+        for label, group_lines in rule._group_lines_for_engine(lines):
+            demands = {}
+            for sol in group_lines:
+                demand = self._line_open_demand(sol)
+                if demand:
+                    demands[sol] = demand
+            if not demands:
+                continue
+            total_demand = sum(demands.values())
+
+            per_product_demand = {}
+            product_line = {}
+            for sol, demand in demands.items():
+                per_product_demand[sol.product_id] = (
+                    per_product_demand.get(sol.product_id, 0.0) + demand
+                )
+                product_line.setdefault(sol.product_id, sol)
+            avail = {
+                product: self._available_qty_for_line(product_line[product], opts)
+                for product in per_product_demand
+            }
+
+            if rule.engine_size_run_aware:
+                # The group can only be filled as far as its scarcest size.
+                rate = min(
+                    min(avail[product] / demand, 1.0)
+                    for product, demand in per_product_demand.items()
+                )
+                achievable_pct = rate * 100.0
+            else:
+                rate = None
+                achievable = sum(
+                    min(avail[product], demand)
+                    for product, demand in per_product_demand.items()
+                )
+                achievable_pct = achievable / total_demand * 100.0
+
+            if float_compare(achievable_pct, target, precision_digits=2) < 0:
+                skips.append(
+                    _("%(group)s: achievable fill %(pct).1f%% is below the "
+                      "%(target).1f%% target — nothing allocated.")
+                    % {"group": label, "pct": achievable_pct, "target": target}
+                )
+                continue
+
+            remaining_avail = dict(avail)
+            for sol, demand in demands.items():
+                product = sol.product_id
+                rounding = product.uom_id.rounding or 0.001
+                if rate is not None:
+                    # Whole-unit demand gets whole-unit allocations (no 0.9
+                    # of a tee); fractional UoMs keep their own precision.
+                    # Round UP so no size ever drops to zero once the group
+                    # passed its gate, and the group never lands below the
+                    # certified rate; the avail/demand caps keep it safe.
+                    precision = rounding
+                    if float_is_zero(demand % 1, precision_rounding=rounding):
+                        precision = max(rounding, 1.0)
+                    qty = min(
+                        float_round(
+                            demand * rate,
+                            precision_rounding=precision,
+                            rounding_method="UP",
+                        ),
+                        remaining_avail.get(product, 0.0),
+                        demand,
+                    )
+                else:
+                    qty = min(demand, remaining_avail.get(product, 0.0))
+                if float_compare(qty, 0.0, precision_rounding=rounding) > 0:
+                    created |= self._consume_sources(sol, qty, opts)
+                    remaining_avail[product] -= qty
+
+        if skips:
+            items = Markup().join(
+                Markup("<li>%s</li>") % skip for skip in skips
+            )
+            order.message_post(
+                body=Markup("<p>%s</p><ul>%s</ul>")
+                % (
+                    _("Allocation run (rule '%s'): some groups stayed below "
+                      "their fill target:") % rule.display_name,
+                    items,
+                )
+            )
         return created
 
     # ------------------------------------------------------------------
