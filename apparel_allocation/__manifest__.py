@@ -18,7 +18,7 @@
       size-run completeness checks and availability-based fill-rate thresholds
     - Soft (ledger) and hard (stock reservation) allocation modes
     """,
-    "version": "19.0.3.0.0",
+    "version": "19.0.4.0.0",
     "author": "P2 Business Solutions",
     "license": "AGPL-3",
     "category": "Inventory/Inventory",

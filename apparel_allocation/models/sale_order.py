@@ -101,6 +101,16 @@ class SaleOrder(models.Model):
             order.allocation_state = "ready" if not messages else "pending"
             order.allocation_message = "\n".join(messages)
 
+    def _get_engine_rule(self):
+        """First applicable rule (by sequence) that drives allocation runs."""
+        self.ensure_one()
+        for rule in self._get_applicable_allocation_rules().filtered(
+            "engine_enabled"
+        ):
+            if rule._is_eligible(self):
+                return rule
+        return self.env["apparel.allocation.rule"]
+
     def action_recheck_allocation(self):
         """Manually refresh the rule status (stock levels may have moved)."""
         self._compute_allocation_state()

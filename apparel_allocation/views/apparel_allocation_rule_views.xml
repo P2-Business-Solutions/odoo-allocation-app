@@ -30,6 +30,36 @@
                     </group>
 
                     <notebook>
+                        <page string="Fill Targets" name="engine">
+                            <group>
+                                <group>
+                                    <field name="engine_enabled"/>
+                                    <field name="engine_fill_level" widget="radio"
+                                           invisible="not engine_enabled"/>
+                                    <field name="engine_fill_target"
+                                           invisible="not engine_enabled"/>
+                                </group>
+                                <group>
+                                    <field name="engine_size_run_aware"
+                                           invisible="not engine_enabled"/>
+                                    <field name="color_attribute_id"
+                                           invisible="not engine_enabled or engine_fill_level != 'line'"/>
+                                </group>
+                            </group>
+                            <separator string="How it works"/>
+                            <div class="text-muted">
+                                <p>Say what you want filled and by how much — no size lists needed.
+                                Allocation runs check each eligible order (or each style/color group)
+                                and either fill it to at least the target percentage or leave it
+                                untouched, so scarce supply is never dribbled away on orders that
+                                cannot ship.</p>
+                                <p>With <b>Balanced Size Runs</b>, every size is allocated at the
+                                same rate: an 80% fill means 80% of every size, keeping the run
+                                complete. Sizes are read from the product variants automatically.
+                                Groups left below target are logged on the order so you can see
+                                exactly why.</p>
+                            </div>
+                        </page>
                         <page string="Eligibility" name="eligibility">
                             <group>
                                 <group>
@@ -66,7 +96,12 @@
                             </group>
                         </page>
 
-                        <page string="Size Targets" name="size_targets">
+                        <page string="Size Minimums (Optional)" name="size_targets">
+                            <div class="text-muted">
+                                <p>Optional, advanced: require specific ordered quantities per size
+                                value before an order passes this rule. Most setups should use the
+                                <b>Fill Targets</b> tab instead — it needs no size list.</p>
+                            </div>
                             <field name="line_ids">
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
@@ -99,6 +134,10 @@
                 <field name="product_template_ids" widget="many2many_tags" optional="show"/>
                 <field name="partner_tag_ids" widget="many2many_tags" optional="hide"/>
                 <field name="partner_customer_type_ids" widget="many2many_tags" optional="hide"/>
+                <field name="engine_enabled" optional="show"/>
+                <field name="engine_fill_target" optional="show"/>
+                <field name="engine_fill_level" optional="hide"/>
+                <field name="engine_size_run_aware" optional="hide"/>
                 <field name="reservation_mode"/>
                 <field name="require_complete_size_run"/>
                 <field name="min_fill_rate_style" optional="hide"/>

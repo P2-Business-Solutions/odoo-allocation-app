@@ -25,6 +25,25 @@ of future supply, bulk allocation / re-allocation tools, and dedicated reporting
   additionally reserves stock on the delivery pickings of confirmed orders.
 - Optional auto-allocation when a sale order is confirmed.
 
+### Fill targets & balanced size runs (rule-driven allocation)
+- Instead of enumerating size targets, a rule can simply state: *"fill eligible
+  orders to at least X%, measured per order or per style/color group."* Enable
+  **Drive Allocation Runs** on an allocation rule and set the target — sizes are
+  read from the product variants automatically, no size lists required.
+- Each group is **all-or-nothing**: it is either fillable to the target
+  percentage (counting whichever supply sources and date constraints the run
+  allows) and gets allocated, or it is left untouched so scarce supply is not
+  dribbled away on orders that cannot ship. Skipped groups are logged on the
+  order's chatter with the achievable percentage.
+- **Balanced Size Runs** (default): every size is allocated at the same rate, so
+  a partial fill keeps a complete, proportional run — 80% means 80% of every
+  size, with whole-unit rounding that never drops small sizes to zero.
+- A **Color Attribute** on the rule splits templates into style/color groups;
+  the first matching engine rule (by sequence, honoring customer eligibility
+  and template scope) governs each order. Orders with no engine rule are
+  allocated greedily as before, and the Run Allocation wizard can untick
+  *Follow Rule Fill Targets* to bypass targets for one run.
+
 ### Re-allocation (individual & bulk)
 - **Bulk**: the *Run Allocation* wizard (menu, or the *Allocate* action on selected
   sale orders) can release existing allocations and redistribute supply in a chosen

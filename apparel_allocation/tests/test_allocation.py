@@ -291,3 +291,171 @@ class TestApparelAllocation(common.TransactionCase):
         )
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows.qty, 3.0)
+
+
+@tagged("post_install", "-at_install")
+class TestSizeRunAllocation(common.TransactionCase):
+    """Rule-driven fill targets: balanced size runs, all-or-nothing groups."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.company = cls.env.company
+        cls.warehouse = cls.env["stock.warehouse"].search(
+            [("company_id", "=", cls.company.id)], limit=1
+        )
+        cls.customer = cls.env["res.partner"].create({"name": "Run Retailer"})
+        cls.size_attr = cls.env["product.attribute"].create(
+            {"name": "Run Size", "create_variant": "always"}
+        )
+        cls.sizes = cls.env["product.attribute.value"].create(
+            [
+                {"name": name, "attribute_id": cls.size_attr.id}
+                for name in ("S", "M", "L")
+            ]
+        )
+        cls.tmpl = cls.env["product.template"].create(
+            {
+                "name": "Run Tee",
+                "type": "consu",
+                "is_storable": True,
+                "attribute_line_ids": [
+                    Command.create(
+                        {
+                            "attribute_id": cls.size_attr.id,
+                            "value_ids": [Command.set(cls.sizes.ids)],
+                        }
+                    )
+                ],
+            }
+        )
+        cls.variants = cls.tmpl.product_variant_ids
+        cls.Allocation = cls.env["apparel.allocation"]
+
+    def _set_stock(self, quantities):
+        for variant, qty in zip(self.variants, quantities):
+            if qty:
+                self.env["stock.quant"]._update_available_quantity(
+                    variant, self.warehouse.lot_stock_id, qty
+                )
+
+    def _create_order(self, quantities):
+        return self.env["sale.order"].create(
+            {
+                "partner_id": self.customer.id,
+                "order_line": [
+                    Command.create(
+                        {"product_id": variant.id, "product_uom_qty": qty}
+                    )
+                    for variant, qty in zip(self.variants, quantities)
+                ],
+            }
+        )
+
+    def _create_rule(self, **overrides):
+        vals = {
+            "name": "Fill Target Rule",
+            "company_id": self.company.id,
+            "engine_enabled": True,
+            "engine_fill_level": "line",
+            "engine_fill_target": 80.0,
+            "engine_size_run_aware": True,
+            "allow_partial": True,
+        }
+        vals.update(overrides)
+        return self.env["apparel.allocation.rule"].create(vals)
+
+    def test_balanced_run_meets_target(self):
+        self._set_stock([8, 8, 8])
+        self._create_rule()
+        so = self._create_order([10, 10, 10])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # 80% achievable on every size -> allocate 8 of each, evenly.
+        self.assertEqual(len(created), 3)
+        self.assertEqual(created.mapped("qty"), [8.0, 8.0, 8.0])
+
+    def test_below_target_allocates_nothing(self):
+        self._set_stock([5, 8, 8])
+        self._create_rule()
+        so = self._create_order([10, 10, 10])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # Scarcest size (S at 50%) is below the 80% target: all-or-nothing.
+        self.assertFalse(created)
+
+    def test_unbalanced_mode_uses_group_total(self):
+        self._set_stock([5, 8, 8])
+        self._create_rule(engine_size_run_aware=False, engine_fill_target=60.0)
+        so = self._create_order([10, 10, 10])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # Group total 21/30 = 70% >= 60% -> greedy within the group.
+        self.assertEqual(sum(created.mapped("qty")), 21.0)
+
+    def test_order_level_target(self):
+        self._set_stock([5, 8, 8])
+        self._create_rule(
+            engine_fill_level="order",
+            engine_size_run_aware=False,
+            engine_fill_target=80.0,
+        )
+        so = self._create_order([10, 10, 10])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # 70% achievable across the order, target 80% -> nothing.
+        self.assertFalse(created)
+
+    def test_balanced_run_rounding_keeps_small_sizes(self):
+        self._set_stock([9, 9, 1])
+        self._create_rule(engine_fill_target=50.0)
+        so = self._create_order([10, 10, 1])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # Rate = min(0.9, 0.9, 1.0) = 0.9; the 1-unit size rounds to 1, not 0.
+        self.assertEqual(sorted(created.mapped("qty")), [1.0, 9.0, 9.0])
+
+    def test_low_rate_never_drops_a_size(self):
+        self._set_stock([4, 4, 1])
+        self._create_rule(engine_fill_target=40.0)
+        so = self._create_order([10, 10, 1])
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # Rate = min(0.4, 0.4, 1.0) = 0.4 passes the 40% gate; the 1-unit
+        # size must round UP to 1, not down to 0.
+        self.assertEqual(sorted(created.mapped("qty")), [1.0, 4.0, 4.0])
+
+    def test_group_never_lands_below_certified_target(self):
+        self._set_stock([8, 3])
+        self._create_rule(engine_fill_target=80.0)
+        so = self.env["sale.order"].create(
+            {
+                "partner_id": self.customer.id,
+                "order_line": [
+                    Command.create(
+                        {"product_id": self.variants[0].id, "product_uom_qty": 10}
+                    ),
+                    Command.create(
+                        {"product_id": self.variants[1].id, "product_uom_qty": 3}
+                    ),
+                ],
+            }
+        )
+        created = self.Allocation.allocate_sale_lines(so.order_line)
+        # Rate = min(0.8, 1.0) = 0.8 passes; M must get ceil(3 * 0.8) = 3
+        # (capped at demand), keeping the group at/above 80%: 8 + 3 = 11/13.
+        by_product = {a.product_id: a.qty for a in created}
+        self.assertEqual(by_product.get(self.variants[0]), 8.0)
+        self.assertEqual(by_product.get(self.variants[1]), 3.0)
+
+    def test_wizard_can_ignore_rule_targets(self):
+        self._set_stock([5, 8, 8])
+        self._create_rule()
+        so = self._create_order([10, 10, 10])
+        created = self.Allocation.allocate_sale_lines(
+            so.order_line, use_rule_targets=False
+        )
+        self.assertEqual(sum(created.mapped("qty")), 21.0)
+
+    def test_skip_logged_on_order(self):
+        self._set_stock([5, 8, 8])
+        self._create_rule()
+        so = self._create_order([10, 10, 10])
+        messages_before = len(so.message_ids)
+        self.Allocation.allocate_sale_lines(so.order_line)
+        self.assertGreater(len(so.message_ids), messages_before)
+        self.assertIn("below the", so.message_ids[0].body)
